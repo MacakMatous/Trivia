@@ -67,43 +67,50 @@ select, input {
   border-radius: 8px;
 }
 
-#high-score {
-  margin-top: 15px;
-}
-
 #error-message {
   display: none;
   color: #ff3b2f;
   font-size: 14px;
 }
 
+#high-score {
+  margin-top: 15px;
+}
+
 /* Answer buttons */
 .answer-btn {
   display: block;
   width: 100%;
-  padding: 12px;
-  margin: 10px 0;
-  background-color: #045bb8;
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
+  padding: 10px;
+  margin: 5px 0;
   font-size: 16px;
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 2px solid #ccc;
+  border-radius: 5px;
+  background-color: #f8f9fa;
+  color: #333;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
 }
 
 .answer-btn:hover {
-  background-color: #3073bb;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  background-color: #e2e6ea;
+}
+
+.answer-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .answer-btn.correct {
-  background-color: #209d3d; /* Green for correct answers */
+  /* color: ; Green text for correct answers */
+  color: #209d3d; /* No background color */
+  border-color: #209d3d; /* Green border */
 }
 
 .answer-btn.incorrect {
-  background-color: #dc3545; /* Red for incorrect answers */
+  color: #dc3545; 
+  /* background-color: transparent; No background color */
+  border-color: #dc3545; /* Red border */
 }
 
 /* Center the next button */
@@ -145,16 +152,16 @@ select, input {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-#final-score{
-  color: #4d4d4d
+#final-score {
+  color: #4d4d4d;
 }
 
 .correct {
-  color: green;
+  color: #1bb740; /* Green font */
 }
 
 .incorrect {
-  color: red;
+  color: #dc3545; /* Red font */
 }
 
 /* Progress and score */

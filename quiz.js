@@ -4,114 +4,86 @@ let questions = [];
 let userAnswers = [];
 let quizSettings;
 let totalQuestions = 0;
+let quizFinished = false;
 
 document.addEventListener('DOMContentLoaded', async function () {
   quizSettings = JSON.parse(localStorage.getItem('quizSettings'));
 
   if (!quizSettings) {
-    window.location.href = 'index.html'; // If no settings, redirect to landing page
+    window.location.href = 'index.html';
     return;
   }
 
-  // Check if the user is allowed to be on this page
   const quizState = localStorage.getItem('quizState');
   if (quizState !== 'inProgress') {
-    window.location.href = 'index.html'; // Redirect to landing page if not in progress
+    window.location.href = 'index.html';
     return;
   }
 
-  // Check if progress is already saved
-  const savedProgress = JSON.parse(localStorage.getItem('quizProgress'));
-  if (savedProgress) {
-    currentQuestionIndex = savedProgress.currentQuestionIndex;
-    score = savedProgress.score;
-    questions = savedProgress.questions;
-    userAnswers = savedProgress.userAnswers;
-    totalQuestions = questions.length;
-    displayQuestion();
-    return;
-  }
-
-  // Check if questions are already fetched and stored in localStorage
-  const storedQuestions = JSON.parse(localStorage.getItem('questions'));
-  if (storedQuestions && storedQuestions.length > 0) {
-    questions = storedQuestions;
-    totalQuestions = questions.length;
-
-    // Verify if the stored questions match the required number of questions
-    const { numEasyQuestions, numMediumQuestions, numHardQuestions } = quizSettings;
-    const questionCounts = countQuestionsByDifficulty(storedQuestions);
-
-    if (
-      questionCounts.easy === numEasyQuestions &&
-      questionCounts.medium === numMediumQuestions &&
-      questionCounts.hard === numHardQuestions
-    ) {
-      displayQuestion();
-      return;
-    }
-  }
-
-  // Debugging: Log the quiz settings
-  console.log('Quiz Settings:', quizSettings);
-
-  // Calculate the total number of questions
-  const { theme, numEasyQuestions, numMediumQuestions, numHardQuestions } = quizSettings;
-  totalQuestions = numEasyQuestions + numMediumQuestions + numHardQuestions;
-
-  // Debugging: Log the total number of questions
-  console.log('Total Questions:', totalQuestions);
-
-  // Show loading indicator
   const loadingElement = document.getElementById('loading');
+  const countdownElement = document.getElementById('countdown');
   if (loadingElement) {
     loadingElement.style.display = 'block';
   }
 
-  try {
-    let isFirstFetch = true;
+  // Calculate expected total questions upfront
+  const { numEasyQuestions, numMediumQuestions, numHardQuestions } = quizSettings;
+  totalQuestions = numEasyQuestions + numMediumQuestions + numHardQuestions;
 
-    // Fetch questions based on the settings
+  try {
+    const { theme } = quizSettings;
+
+    // Start the countdown and fetch questions simultaneously
+    let countdown = 10;
+    const countdownInterval = setInterval(() => {
+      countdown--;
+      countdownElement.textContent = countdown;
+      if (countdown === 0) {
+        clearInterval(countdownInterval);
+      }
+    }, 1000);
+
+    // Fetch all questions
     if (numEasyQuestions > 0) {
-      await fetchQuestions(theme, 'easy', numEasyQuestions, isFirstFetch);
-      isFirstFetch = false;
+      await fetchQuestions(theme, 'easy', numEasyQuestions);
     }
     if (numMediumQuestions > 0) {
-      await fetchQuestions(theme, 'medium', numMediumQuestions, isFirstFetch);
-      isFirstFetch = false;
+      await delay(5000); // Delay for 5 seconds to respect the rate limit
+      await fetchQuestions(theme, 'medium', numMediumQuestions);
     }
     if (numHardQuestions > 0) {
-      await fetchQuestions(theme, 'hard', numHardQuestions, isFirstFetch);
+      await delay(5000); // Delay for 5 seconds to respect the rate limit
+      await fetchQuestions(theme, 'hard', numHardQuestions);
     }
 
-    // Store fetched questions in localStorage
+    // Verify all questions were fetched successfully
+    if (questions.length !== totalQuestions) {
+      throw new Error('Failed to fetch all required questions');
+    }
+
     localStorage.setItem('questions', JSON.stringify(questions));
 
-    // Hide loading indicator
     if (loadingElement) {
       loadingElement.style.display = 'none';
     }
 
-    // Display the first question
     displayQuestion();
   } catch (error) {
-    alert('Failed to fetch questions. Please try again later.');
-    console.error(error);
+    console.error('Error fetching questions:', error);
+    alert('Failed to fetch all required questions. Please try again.');
+    window.location.href = 'index.html';
   }
 });
 
-const fetchQuestions = async (theme, difficulty, numQuestions, isFirstFetch) => {
-  if (!isFirstFetch) {
-    await delay(5000); // Delay for 5 seconds to respect the rate limit
-  }
-
+const fetchQuestions = async (theme, difficulty, numQuestions) => {
   try {
     let url;
     if (theme === 'any') {
-      url = `https://opentdb.com/api.php?amount=${numQuestions}&difficulty=${difficulty}&type=multiple`;
+      url = `https://opentdb.com/api.php?amount=${numQuestions}&difficulty=${difficulty}`;
     } else {
-      url = `https://opentdb.com/api.php?amount=${numQuestions}&category=${theme}&difficulty=${difficulty}&type=multiple`;
+      url = `https://opentdb.com/api.php?amount=${numQuestions}&category=${theme}&difficulty=${difficulty}`;
     }
+    console.log(`Fetching ${difficulty} questions from URL: ${url}`);
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -125,11 +97,6 @@ const fetchQuestions = async (theme, difficulty, numQuestions, isFirstFetch) => 
 
     // Store fetched questions in localStorage
     localStorage.setItem('questions', JSON.stringify(questions));
-
-    // Display the first question as soon as it's fetched
-    if (currentQuestionIndex === 0) {
-      displayQuestion();
-    }
   } catch (error) {
     console.error(`Failed to fetch ${difficulty} questions:`, error);
     alert(`Failed to fetch ${difficulty} questions. Please try again later.`);
@@ -143,21 +110,26 @@ const displayQuestion = () => {
     localStorage.setItem('userAnswers', JSON.stringify(userAnswers));
     localStorage.setItem('finalScore', JSON.stringify(score));
     localStorage.setItem('quizState', 'completed'); // Update state to completed
+    quizFinished = true; // Set the flag to true when the quiz is finished
 
     // Update high score if the current score is higher
     const highScore = JSON.parse(localStorage.getItem('highScore')) || 0;
     if (score > highScore) {
       localStorage.setItem('highScore', JSON.stringify(score));
     }
-
     window.location.href = 'results.html'; // Redirect to results page when questions finish
     return;
   }
 
   const question = questions[currentQuestionIndex];
-  const answers = [...question.incorrect_answers, question.correct_answer];
+  let answers = [...question.incorrect_answers, question.correct_answer];
+
+  // Shuffle the answers
+  const decodeHTML = str => new DOMParser().parseFromString(str, 'text/html').body.textContent;
+  answers = shuffleArray(answers.map(decodeHTML));
 
   const questionText = document.getElementById('question');
+
   questionText.innerHTML = question.question;
 
   const difficultyText = document.createElement('p');
@@ -167,6 +139,7 @@ const displayQuestion = () => {
 
   const answersDiv = document.getElementById('answers');
   answersDiv.innerHTML = '';
+
 
   answers.forEach(answer => {
     const answerButton = document.createElement('button');
@@ -182,10 +155,15 @@ const displayQuestion = () => {
 
   // Save progress
   saveProgress();
+
 };
 
 const checkAnswer = (answer, button) => {
   const correctAnswer = questions[currentQuestionIndex].correct_answer;
+
+  // Disable all answer buttons to prevent multiple clicks
+  const answerButtons = document.querySelectorAll('.answer-btn');
+  answerButtons.forEach(btn => btn.disabled = true);
 
   if (answer === correctAnswer) {
     button.classList.add('correct');
@@ -193,6 +171,12 @@ const checkAnswer = (answer, button) => {
     score += difficulty === 'easy' ? 1 : difficulty === 'medium' ? 2 : 3;
   } else {
     button.classList.add('incorrect');
+    // Highlight the correct answer
+    answerButtons.forEach(btn => {
+      if (btn.textContent === correctAnswer) {
+        btn.classList.add('correct');
+      }
+    });
   }
 
   userAnswers.push({ question: questions[currentQuestionIndex], selectedAnswer: answer });
@@ -213,6 +197,14 @@ const saveProgress = () => {
   localStorage.setItem('quizProgress', JSON.stringify(progress));
 };
 
+const shuffleArray = (array) => {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+};
+
 const countQuestionsByDifficulty = (questions) => {
   return questions.reduce((counts, question) => {
     counts[question.difficulty] = (counts[question.difficulty] || 0) + 1;
@@ -221,3 +213,13 @@ const countQuestionsByDifficulty = (questions) => {
 };
 
 document.getElementById('next-question').addEventListener('click', displayQuestion);
+
+// Add confirmation when exiting or refreshing mid-game
+window.addEventListener('beforeunload', function (e) {
+  if (!quizFinished) {
+    const confirmationMessage = 'Are you sure you want to leave? Your progress will be lost.';
+    e.preventDefault();
+    e.returnValue = confirmationMessage; // For most browsers
+    return confirmationMessage; // For some older browsers
+  }
+});

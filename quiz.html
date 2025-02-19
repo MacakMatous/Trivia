@@ -11,19 +11,19 @@
   <div class="container">
     <h1>Trivia Quiz</h1>
     <div id="question-container" class="question-container">
-      <p id="question">Loading question...</p>
+      <div id="loading">
+        <p id="loading-message">Your test will be ready in: <span id="countdown">10</span> seconds</p>
+      </div>
+      <div id="question"></div>
       <div id="answers"></div>
     </div>
 
     <button id="next-question" class="next-btn" style="display: none;">Next Question</button>
 
     <p id="progress">Question 1 / 10</p>
-    <p id="score">Score: 0</p> <!-- Display current score -->
+    <p id="score">Score: 0</p>
 
   </div>
-
-  <div id="loading" style="display: none;">Loading questions, please wait...</div>
-
   <script src="quiz.js"></script>
 </body>
 </html>
